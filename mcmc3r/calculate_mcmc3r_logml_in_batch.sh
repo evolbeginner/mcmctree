@@ -12,7 +12,11 @@ for i in `ls`; do
 	Rscript ~/project/Rhizobiales/scripts/dating/mcmc3r/calculate_mcmc3r_logml.R
 	cd ../IR
 	Rscript ~/project/Rhizobiales/scripts/dating/mcmc3r/calculate_mcmc3r_logml.R
-	echo
+	if [ -d ../SR ] ; then
+		cd ../SR
+		Rscript ~/project/Rhizobiales/scripts/dating/mcmc3r/calculate_mcmc3r_logml.R
+		echo
+	fi
 	cd $A
 done 2>/dev/null
 

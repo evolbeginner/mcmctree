@@ -6,7 +6,7 @@
          ndata = 2
        seqtype = 2
        usedata = 2 in.BV 1
-         clock = 2
+         clock = 3
        RootAge = <1.0  * safe constraint on root age, used if no fossil for root.
 
          model = 0    * 0:JC69, 1:K80, 2:F81, 3:F84, 4:HKY85
@@ -25,8 +25,8 @@
       finetune = 1: 0.1  0.1  0.1  0.01 .5  * auto (0 or 1) : times, musigma2, rates, mixing, paras, FossilErr
 
          print = 1
-        burnin = 10
+        burnin = 20000
       sampfreq = 10
-       nsample = 20
+       nsample = 20000
 
 *** Note: Make your window wider (100 columns) before running the program.

@@ -1,11 +1,11 @@
-33309
+132070
 /home-user/sswang/project/Rhizobiales/scripts/dating/test/1/mcmctree/combined-2/disabled_bin/codeml
 MCMCTREE in paml version 4.9j, October 2019
 
 Reading options from mcmctree.ctl..
 finetune is deprecated now.
 Reading master tree.
-(((c, b), a), (d, e));
+(((a, b), c), (d, e));
 
 Reading sequence data..  2 loci
 

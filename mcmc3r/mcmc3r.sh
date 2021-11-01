@@ -9,6 +9,9 @@ cd -
 
 indir=''
 outdir=''
+is_IR=true
+is_AR=true
+is_SR=true
 
 
 ############################################################
@@ -22,6 +25,15 @@ while [ $# -gt 0 ]; do
 			outdir=$2
 			shift
 			;;		
+		--no_SR|--noSR)
+			is_SR=false
+			;;
+		--no_AR|--noAR)
+			is_AR=false
+			;;
+		--no_IR|--noIR)
+			is_IR=false
+			;;
 	esac
 	shift
 done
@@ -49,25 +61,32 @@ find -name mcmctree.ctl -exec sed 's/usedata = .\+/usedata = 1/' -i {} \;
 
 
 ############################################################
-cd SR
-find -name mcmctree.ctl -exec sed 's/clock = .\+/clock = 1/' -i {} \;
-for i in `seq 1 1 8`; do cp mcmctree.ctl species.trees combined.phy $i; done
-mv mcmctree.ctl mcmctree.ctl0
-Rscript $dir/mcmc3r.R
-cd ..
+if [ $is_SR == true ]; then
+	cd SR
+	find -name mcmctree.ctl -exec sed 's/clock = .\+/clock = 1/' -i {} \;
+	for i in `seq 1 1 8`; do cp mcmctree.ctl species.trees combined.phy $i; done
+	mv mcmctree.ctl mcmctree.ctl0
+	Rscript $dir/mcmc3r.R
+	cd ..
+fi
 
-cd IR
-find -name mcmctree.ctl -exec sed 's/clock = .\+/clock = 2/' -i {} \;
-for i in `seq 1 1 8`; do cp mcmctree.ctl species.trees combined.phy $i; done
-mv mcmctree.ctl mcmctree.ctl0
-Rscript $dir/mcmc3r.R
-cd ..
 
-cd AR
-find -name mcmctree.ctl -exec sed 's/clock = .\+/clock = 3/' -i {} \;
-for i in `seq 1 1 8`; do cp mcmctree.ctl species.trees combined.phy $i; done
-mv mcmctree.ctl mcmctree.ctl0
-Rscript $dir/mcmc3r.R
-cd ..
+if [ $is_IR == true ]; then
+	cd IR
+	find -name mcmctree.ctl -exec sed 's/clock = .\+/clock = 2/' -i {} \;
+	for i in `seq 1 1 8`; do cp mcmctree.ctl species.trees combined.phy $i; done
+	mv mcmctree.ctl mcmctree.ctl0
+	Rscript $dir/mcmc3r.R
+	cd ..
+fi
+
+if [ $is_AR == true ]; then
+	cd AR
+	find -name mcmctree.ctl -exec sed 's/clock = .\+/clock = 3/' -i {} \;
+	for i in `seq 1 1 8`; do cp mcmctree.ctl species.trees combined.phy $i; done
+	mv mcmctree.ctl mcmctree.ctl0
+	Rscript $dir/mcmc3r.R
+	cd ..
+fi
 
 

@@ -12,11 +12,11 @@ require 'getoptlong'
 require 'bio'
 require 'parallel'
 require 'tempfile'
+require 'bio-nwk'
 
 require 'chang_yong'
 require 'Dir'
 require 'getSubtree'
-require 'tree'
 
 
 ###################################################################
@@ -27,6 +27,7 @@ treefiles = Array.new
 species_tree_file = nil
 is_tmpfile = false
 cpu = 1
+is_nwk = false
 
 fams_included = Hash.new
 taxa2fam = Hash.new{|h,k|h[k]={}}
@@ -73,58 +74,69 @@ end
 
 
 ###################################################################
-opts = GetoptLong.new(
-  ['-t', GetoptLong::REQUIRED_ARGUMENT],
-  ['--species_tree', GetoptLong::REQUIRED_ARGUMENT],
-  ['--tmpfile', GetoptLong::NO_ARGUMENT],
-  ['--cpu', GetoptLong::REQUIRED_ARGUMENT],
-)
+if __FILE__ == $0
+  opts = GetoptLong.new(
+    ['-t', GetoptLong::REQUIRED_ARGUMENT],
+    ['--species_tree', GetoptLong::REQUIRED_ARGUMENT],
+    ['--tmpfile', GetoptLong::NO_ARGUMENT],
+    ['--cpu', GetoptLong::REQUIRED_ARGUMENT],
+    ['--nwk', GetoptLong::NO_ARGUMENT],
+  )
 
 
-opts.each do |opt, value|
-  case opt
-    when /^-t$/
-      treefiles << value.split(',')
-    when /^--species_tree$/
-      species_tree_file = value
-    when /^--tmpfile$/
-      is_tmpfile = true
-    when /^--cpu$/
-      cpu = value.to_i
+  opts.each do |opt, value|
+    case opt
+      when /^-t$/
+        treefiles << value.split(',')
+      when /^--species_tree$/
+        species_tree_file = value
+      when /^--tmpfile$/
+        is_tmpfile = true
+      when /^--cpu$/
+        cpu = value.to_i
+      when /^--nwk$/
+        is_nwk = true
+    end
   end
-end
 
 
-###################################################################
-treefiles.flatten!
+  ###################################################################
+  treefiles.flatten!
 
 
-###################################################################
-if is_tmpfile
-  tmpfile = Tempfile.new('foo')
-  `bash #{FIGTREE2TREE} #{species_tree_file} > #{tmpfile.path}`
-  #`bash #{FIGTREE2TREE} #{species_tree_file} > #{tmpfile}`
-  `ruby #{FLOATTREEBL} -i #{tmpfile.path} | sponge #{tmpfile.path}`
-  species_tree_file = tmpfile.path
-end
-
-species_tree = getTreeObjs(species_tree_file).shift()
-
-taxa2node = getTaxa2Node(species_tree)
-#taxa2node.each_pair do |taxa, v|
-#  puts taxa if taxa.count{|i|i=~/Methylobacterium/} == 9
-#end
-
-taxas = getTaxaIncluded(treefiles).sort
-
-taxas.each do |taxa|
-  if taxa2node.include?(taxa)
-    node = taxa2node[taxa]
-    a = node.name.split('-')
-    start, stop = a.map{|i|i.to_f}
-    height = species_tree.distance(node, species_tree.tips(node)[0])
-    puts [taxas.index(taxa), start, stop, height].join("\t")
+  ###################################################################
+  if is_tmpfile
+    tmpfile = Tempfile.new('foo')
+    if is_nwk
+      `cp #{species_tree_file} #{tmpfile.path}`
+    else
+      `bash #{FIGTREE2TREE} #{species_tree_file} > #{tmpfile.path}`
+    end
+    #`bash #{FIGTREE2TREE} #{species_tree_file} > #{tmpfile}`
+    `ruby #{FLOATTREEBL} -i #{tmpfile.path} | sponge #{tmpfile.path}`
+    species_tree_file = tmpfile.path
   end
+
+  species_tree = getTreeObjs(species_tree_file).shift()
+
+  taxa2node = getTaxa2Node(species_tree)
+  #taxa2node.each_pair do |taxa, v|
+  #  puts taxa if taxa.count{|i|i=~/Methylobacterium/} == 9
+  #end
+
+  taxas = getTaxaIncluded(treefiles).sort
+
+  taxas.each do |taxa|
+    if taxa2node.include?(taxa)
+      node = taxa2node[taxa]
+      a = node.name.split('-')
+      min, max = a.map{|i|i.to_f}
+      mean = species_tree.distance(node, species_tree.tips(node)[0])
+      #puts [start, stop, height].join("\t")
+      puts [mean, min, max].join("\t")
+    end
+  end
+
 end
 
 <<EOF
@@ -137,11 +149,5 @@ taxa2node.each_pair do |taxa, node|
   end
 end
 EOF
-
-
-###################################################################
-Parallel.map(taxas, in_processes: taxas.size) do |taxa|
-  index = taxas.index(taxa)
-end
 
 

@@ -8,6 +8,12 @@
 # Copyright: CC 4.0 (https://creativecommons.org/licenses/by/4.0/)
 # To see the usage, run the script with '-h'
 
+# v1.4 2021-02-24
+#   1. allows stopping before the final mcmctree (--stop_before_mcmctree)
+
+# v1.3 2020-02-08
+#   1. some bugs fixed
+
 # v1.2 2019-12-20
 #   1. allows running mcmctree for multiple trees in parallel (--tree_indir)
 
@@ -30,7 +36,8 @@ $PWD = Dir.getwd
 PAML_DIR = File.expand_path("~/software/phylo/paml/")
 MCMCTREE_CTL = File.join(PAML_DIR, 'mcmctree.ctl')
 CODEML_CTL = File.join(PAML_DIR, 'codeml.ctl')
-MCMCTREE = File.join(PAML_DIR, 'src', 'mcmctree')
+#MCMCTREE = File.join(PAML_DIR, 'src', 'mcmctree')
+MCMCTREE = "mcmctree"
 
 
 #################################################################
@@ -56,6 +63,7 @@ other_args = Hash.new
 cpu = 1
 is_force = false
 is_tolerate = false
+is_stop_before_mcmctree = false
 
 times = Array.new
 $is_aa = false
@@ -80,7 +88,7 @@ def usage()
   pf ['--sigma|sigma2|sigma_gamma|sigma2_gamma', "the value for sigma2_gamma"]
   pf ['--bsn', "the value for bsn (burnin, sampfreq, nsample; default: 2000,2,20000)"]
   pf ['--alpha', "alpha in Gamma Dist"]
-  pf ['--ncatG', "the no. of Gamma categories; default: 4"]
+  pf ['--ncatG', "the no. of Gamma categories; default: 5"]
   pf ['--nsample', "the no. of samples"]
   pf ['--sub_model', "substitution model (default: LG for protein)"]
   pf ['--one_codeml', "only a single codeml is performed."]
@@ -157,9 +165,9 @@ def run_codeml(outdir, seqtype, ndata, alpha, ncatG, cpu)
     `mkdir #{c}; mv #{c}.* #{c}`
 
     if $is_aa
-      prepare_paml_ctl(File.join(sub_outdir, b), '', {'model'=>2,'aaRatefile'=>AA_RATE_FILE,'fix_alpha'=>0,'alpha'=>alpha, 'ncatG'=>ncatG}, {})
+      prepare_paml_ctl(File.join(sub_outdir, b), '', {'model'=>2,'aaRatefile'=>AA_RATE_FILE,'fix_alpha'=>0,'alpha'=>alpha, 'ncatG'=>ncatG}, {'method'=>1})
     else
-      prepare_paml_ctl(File.join(sub_outdir, b), '', {'model'=>7,'fix_alpha'=>0,'alpha'=>alpha, 'ncatG'=>ncatG}, {})
+      prepare_paml_ctl(File.join(sub_outdir, b), '', {'model'=>7,'fix_alpha'=>0,'alpha'=>alpha, 'ncatG'=>ncatG}, {'method'=>1})
     end
 
     Dir.chdir(sub_outdir)
@@ -207,6 +215,7 @@ opts = GetoptLong.new(
   ['--regular', GetoptLong::NO_ARGUMENT],
   ['--fastest', GetoptLong::NO_ARGUMENT],
   ['--one_codeml', GetoptLong::NO_ARGUMENT],
+  ['--stop_before_mcmctree', GetoptLong::NO_ARGUMENT],
   ['-h', GetoptLong::NO_ARGUMENT],
 )
 
@@ -233,7 +242,7 @@ opts.each do |opt, value|
       STDOUT.puts "prot"
     when '--clock'
       clock = value
-      clock = 1 if clock == 'SR'
+      clock = 1 if clock =~ /^SR|STR$/
       clock = 2 if clock == 'IR'
       clock = 3 if clock == 'AR'
       STDOUT.puts "clock = #{clock}"
@@ -271,6 +280,8 @@ opts.each do |opt, value|
     when '--one_codeml'
       is_one_codeml = true
       STDOUT.puts "one codeml!"
+    when '--stop_before_mcmctree'
+      is_stop_before_mcmctree = true
     when '-h'
       usage()
   end
@@ -282,10 +293,12 @@ puts
 #################################################################
 AA_RATE_FILE = File.join(PAML_DIR, 'dat', sub_model + '.dat')
 
-#mkdir_with_force(outdir, is_force, is_tolerate)
+mkdir_with_force(outdir, is_force, is_tolerate)
 
-Dir.foreach(tree_indir) do |b|
-  treefiles << File.join(tree_indir, b) if b =~ /^#{prefix}/
+if not tree_indir.nil?
+  Dir.foreach(tree_indir) do |b|
+    treefiles << File.join(tree_indir, b) if b =~ /^#{prefix}/
+  end
 end
 
 treefiles.each do |treefile|
@@ -377,9 +390,15 @@ puts 'mcmctree' #start final mcmctree
 Parallel.map(sub_outdirs, in_processes: cpu) do |sub_outdir|
   Dir.chdir(sub_outdir)
   prepare_paml_ctl('mcmctree.ctl', '', {'seqfile'=>seqfile_b, 'treefile'=>'species.trees', 'ndata'=>ndata, 'seqtype'=>seqtype, 'usedata'=>"2 in.BV 1", 'clock'=>clock, 'BDparas'=>bd_paras, 'rgene_gamma'=>rgene_gamma, 'sigma2_gamma'=>sigma2_gamma, 'burnin'=>burnin, 'sampfreq'=>sampfreq, 'nsample'=>nsample, 'alpha'=>alpha, 'ncatG'=>ncatG}, other_args)
+  #---------------------------------------------------------------#
+  if is_stop_before_mcmctree
+    puts "As required, stop before the final MCMCTree run!"
+    next
+  end
+  #---------------------------------------------------------------#
   `echo $$ > mcmctree.final; #{MCMCTREE} mcmctree.ctl >> mcmctree.final`
+  Dir.chdir($PWD)
 end
-Dir.chdir($PWD)
 
 
 #################################################################

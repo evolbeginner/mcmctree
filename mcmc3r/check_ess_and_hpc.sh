@@ -41,13 +41,15 @@ for t in ${types[@]}; do
 	cd $t
 
 	for j in `seq 1 1 8`; do
+		d=`pwd`
 		a=`Rscript ~/project/Rhizobiales/scripts/dating/calculate_ess.R $j/mcmc.txt | tail -1`
 		b=`awk -v n1=$a -v n2=100 'BEGIN{if(n1<n2){print 0}else{print 1}}'`
 		if [ $b == 0 ]; then
+			echo -e "$d\t$j"
 			if [ $is_only_echo == true ]; then
-				echo $j
+				echo -e "$d\t$j"
 			else
-				sed -i 's/burnin = .\+/burnin = 10000/; s/sampfreq = .\+/sampfreq = 10/; s/nsample = .\+/nsample = 20000/' $j/mcmctree.ctl
+				sed -i 's/burnin = .\+/burnin = 100000/; s/sampfreq = .\+/sampfreq = 10/; s/nsample = .\+/nsample = 100000/' $j/mcmctree.ctl
 			fi
 
 			cd $j
